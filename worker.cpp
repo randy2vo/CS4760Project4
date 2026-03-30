@@ -53,16 +53,23 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    srand(getpid() ^ time(nullptr));
+    srand((unsigned int)(getpid() ^ time(nullptr)));
 
-    Message msg;
+    cout << "WORKER PID:" << getpid()
+         << " localPid:" << localPid
+         << " totalCpuBurstNs:" << totalCpuBurstNs
+         << " startClock: " << clk->seconds << ":" << clk->nanoseconds
+         << "\n";
 
     while (true) {
+        Message msg;
+
         if (msgrcv(msgid, &msg, sizeof(Message) - sizeof(long), getpid(), 0) == -1) {
             if (errno == EIDRM || errno == EINTR) {
                 shmdt(clk);
                 return 0;
             }
+
             cerr << "Worker: msgrcv failed: " << strerror(errno) << "\n";
             shmdt(clk);
             return 1;
@@ -72,33 +79,53 @@ int main(int argc, char* argv[]) {
         unsigned int remaining = totalCpuBurstNs - totalCpuUsed;
 
         Message reply;
-        reply.mtype = 1;
+        reply.mtype = 1;          // send back to oss
         reply.index = localPid;
+        reply.quantum = quantum;
+        reply.usedTime = 0;
+        reply.action = ACTION_FULL_QUANTUM;
 
-        // terminate if remaining CPU needed is less than or equal to quantum
+        // Case 1: process finishes during this dispatch
         if (remaining <= quantum) {
             reply.usedTime = remaining;
-            reply.action = 2; // terminated
+            reply.action = ACTION_TERMINATED;
             totalCpuUsed += remaining;
+
+            cout << "WORKER PID:" << getpid()
+                 << " terminating after using "
+                 << reply.usedTime << " ns"
+                 << " totalUsed=" << totalCpuUsed << "\n";
 
             if (msgsnd(msgid, &reply, sizeof(Message) - sizeof(long), 0) == -1) {
                 cerr << "Worker: msgsnd failed: " << strerror(errno) << "\n";
                 shmdt(clk);
                 return 1;
             }
+
             break;
         }
 
         // 20% chance to block
         int chance = rand() % 100;
         if (chance < 20) {
-            reply.usedTime = 1 + (rand() % quantum);
-            reply.action = 1; // blocked
+            reply.usedTime = 1 + (rand() % quantum);   // partial quantum
+            reply.action = ACTION_BLOCKED;
             totalCpuUsed += reply.usedTime;
+
+            cout << "WORKER PID:" << getpid()
+                 << " blocked after using "
+                 << reply.usedTime << " ns"
+                 << " totalUsed=" << totalCpuUsed << "\n";
         } else {
+            // use full quantum
             reply.usedTime = quantum;
-            reply.action = 0; // used full quantum
+            reply.action = ACTION_FULL_QUANTUM;
             totalCpuUsed += quantum;
+
+            cout << "WORKER PID:" << getpid()
+                 << " used full quantum "
+                 << reply.usedTime << " ns"
+                 << " totalUsed=" << totalCpuUsed << "\n";
         }
 
         if (msgsnd(msgid, &reply, sizeof(Message) - sizeof(long), 0) == -1) {
