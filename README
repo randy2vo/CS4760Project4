@@ -110,4 +110,3 @@ If running with no arguments (e.g "./oss"), default case would be -n 1 -s 1 -t 1
 
 Added a header file (shared.h) to store shared data structures and reduce code duplication thus improving readability.
 
-Use cleanall to remove the log.txt aswell. 
