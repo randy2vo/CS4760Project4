@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
 
         Message reply;
         reply.mtype = 1;          // send back to oss
-        reply.index = localPid;
+        reply.index = msg.index;
         reply.quantum = quantum;
         reply.usedTime = 0;
         reply.action = ACTION_FULL_QUANTUM;
