@@ -102,25 +102,31 @@ static int findFreeSlot() {
 }
 
 static void printReadyQueue() {
-    queue<int> temp = readyQueue;
-    logBoth("OSS: Ready queue [ ");
-    while (!temp.empty()) {
-        int idx = temp.front();
-        temp.pop();
-        logBoth("P%d ", g_table[idx].localPid);
-    }
-    logBoth("]\n");
+	queue<int> temp = readyQueue;
+	string line = "OSS: Ready queue [";
+	while(!temp.empty()) {
+		int idx = temp.front();
+		temp.pop();
+		line += " p" + to_string(g_table[idx].localPid);
+	}
+	line += " ]\n";
+	logBoth("%s", line.c_str());
 }
 
+
+
+
 static void printBlockedList() {
-    logBoth("OSS: Blocked queue [ ");
+    string line = "OSS: Blocked queue [";
     for (int i = 0; i < TABLE_SIZE; i++) {
         if (g_table[i].occupied && g_table[i].blocked) {
-            logBoth("P%d ", g_table[i].localPid);
+            line += " p" + to_string(g_table[i].localPid);
         }
     }
-    logBoth("]\n");
+    line += " ]\n";
+    logBoth("%s", line.c_str());
 }
+
 
 static void printProcessTable() {
     logBoth("\nOSS PID:%d SysClockS: %u SysClockNano: %u\n",
@@ -229,7 +235,7 @@ static void checkBlockedProcesses() {
 int main(int argc, char* argv[]) {
     signal(SIGINT, signal_handler);
     signal(SIGALRM, signal_handler);
-    alarm(3); // assignment says more than 3 real-life seconds :contentReference[oaicite:1]{index=1}
+    alarm(3); 
 
     srand((unsigned int)(time(nullptr) ^ getpid()));
 
